@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#116466" />
+    <title>Diario de Bordo de Exploradores</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>Diario de Bordo</h1>
+          <p>Expedicoes offline-first</p>
+        </div>
+        <span id="networkBadge" class="badge offline">Offline</span>
+      </header>
+
+      <main class="content">
+        <section id="dashboardView" class="view active" aria-labelledby="dashboardTitle">
+          <h2 id="dashboardTitle">Painel</h2>
+          <div class="metric-grid">
+            <article class="metric">
+              <span>Total</span>
+              <strong id="totalCount">0</strong>
+            </article>
+            <article class="metric">
+              <span>Sincronizadas</span>
+              <strong id="syncedPercent">0%</strong>
+            </article>
+            <article class="metric">
+              <span>Pendentes</span>
+              <strong id="pendingCount">0</strong>
+            </article>
+            <article class="metric">
+              <span>Conflitos</span>
+              <strong id="conflictCount">0</strong>
+            </article>
+          </div>
+          <section class="panel">
+            <h3>Categorias</h3>
+            <div id="categoryBreakdown" class="category-list"></div>
+          </section>
+        </section>
+
+        <section id="formView" class="view" aria-labelledby="formTitle">
+          <h2 id="formTitle">Nova descoberta</h2>
+          <form id="discoveryForm" class="form">
+            <label>
+              Titulo
+              <input id="titleInput" required maxlength="80" autocomplete="off" />
+            </label>
+            <label>
+              Descricao
+              <textarea id="descriptionInput" required maxlength="800" rows="5"></textarea>
+            </label>
+            <fieldset>
+              <legend>Categoria</legend>
+              <div id="categoryChoices" class="choice-grid"></div>
+            </fieldset>
+            <section class="photo-panel">
+              <div class="section-row">
+                <strong>Fotos <span id="photoCounter">0/3</span></strong>
+                <label class="icon-action" title="Capturar foto">
+                  <span aria-hidden="true">📷</span>
+                  <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
+                </label>
+              </div>
+              <div id="photoPreview" class="photo-strip"></div>
+            </section>
+            <button class="primary" type="submit">Salvar offline</button>
+          </form>
+        </section>
+
+        <section id="recordsView" class="view" aria-labelledby="recordsTitle">
+          <h2 id="recordsTitle">Registros</h2>
+          <div class="search-row">
+            <input id="searchInput" type="search" placeholder="Buscar no banco local" />
+            <button id="favoriteFilterButton" class="square-button" title="Filtrar favoritos">☆</button>
+          </div>
+          <div id="recordsList" class="records-list"></div>
+        </section>
+
+        <section id="syncView" class="view" aria-labelledby="syncTitle">
+          <h2 id="syncTitle">Sincronizacao</h2>
+          <section class="panel sync-panel">
+            <p>A fila local preserva descobertas criadas sem internet e envia em lote quando a conexao volta.</p>
+            <div class="metric-grid compact">
+              <article class="metric">
+                <span>Na fila</span>
+                <strong id="syncQueueCount">0</strong>
+              </article>
+              <article class="metric">
+                <span>Enviadas</span>
+                <strong id="syncDoneCount">0</strong>
+              </article>
+            </div>
+            <button id="syncButton" class="primary" type="button">Sincronizar agora</button>
+            <p id="syncResult" class="sync-result"></p>
+          </section>
+        </section>
+      </main>
+
+      <nav class="tabbar" aria-label="Navegacao principal">
+        <button class="tab active" data-tab="dashboardView">Painel</button>
+        <button class="tab" data-tab="formView">Novo</button>
+        <button class="tab" data-tab="recordsView">Registros</button>
+        <button class="tab" data-tab="syncView">Sync</button>
+      </nav>
+    </div>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Diario de Bordo de Exploradores",
+    "slug": "diario-de-bordo-exploradores",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Permite registrar fotos das descobertas em campo.",
+        "NSPhotoLibraryUsageDescription": "Permite anexar fotos existentes as descobertas."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#f7f3ea"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "syncEndpoint": ""
+    }
+  }
+}
