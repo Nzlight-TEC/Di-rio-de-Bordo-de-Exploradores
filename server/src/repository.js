@@ -10,7 +10,7 @@ export function createRepository(connectionString) {
   const pool = new Pool({
     connectionString,
     max: 10,
-    ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: true } : undefined
+    ssl: shouldUseSsl(connectionString)
   });
 
   return {
@@ -183,4 +183,16 @@ function accepted(remoteId, payload, acceptedHash) {
     status: 'accepted',
     acceptedHash
   };
+}
+
+function shouldUseSsl(connectionString) {
+  if (process.env.PGSSLMODE === 'disable') {
+    return false;
+  }
+
+  if (process.env.PGSSLMODE === 'require' || connectionString.includes('supabase')) {
+    return { rejectUnauthorized: true };
+  }
+
+  return undefined;
 }
