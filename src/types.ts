@@ -11,10 +11,16 @@ export type DiscoveryCategory =
 
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'conflict' | 'error';
 
+export type SyncOperation = 'upsert' | 'delete';
+
 export type DiscoveryPhoto = {
   id: string;
   discoveryId: string;
   uri: string;
+  optimizedUri: string | null;
+  mimeType: string;
+  byteSize: number;
+  sha256: string;
   createdAt: string;
 };
 
@@ -33,6 +39,8 @@ export type Discovery = {
   version: number;
   lastSyncedAt: string | null;
   conflictNote: string | null;
+  deviceId: string;
+  contentHash: string;
   photos: DiscoveryPhoto[];
 };
 
@@ -62,4 +70,21 @@ export type RemoteSyncRecord = {
   updatedAt?: string;
   status?: 'accepted' | 'conflict';
   conflictNote?: string;
+  acceptedHash?: string;
+};
+
+export type StoredPhotoInput = {
+  uri: string;
+  optimizedUri: string | null;
+  mimeType: string;
+  byteSize: number;
+  sha256: string;
+};
+
+export type NetworkSnapshot = {
+  online: boolean;
+  type: string | null;
+  changedAt: string;
+  lastOnlineAt: string | null;
+  lastOfflineAt: string | null;
 };

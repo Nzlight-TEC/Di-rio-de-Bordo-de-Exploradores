@@ -1,14 +1,17 @@
 import NetInfo from '@react-native-community/netinfo';
 
-import { SYNC_ENDPOINT } from '../constants';
+import { SYNC_AUTH_TOKEN, SYNC_BATCH_SIZE, SYNC_ENDPOINT } from '../constants';
 import {
-  getPendingDiscoveries,
+  getSyncQueueBatch,
+  markQueueProcessing,
   markConflict,
   markSynced,
   markSyncError,
   markSyncing
 } from '../storage/database';
 import type { Discovery, RemoteSyncRecord } from '../types';
+import { assertPhotoIntegrity } from './photoStorage';
+import { calculatePayloadHash, createSecureEnvelope } from './secureEnvelope';
 
 export type SyncResult = {
   attempted: number;
@@ -32,7 +35,7 @@ export async function syncPendingDiscoveries(): Promise<SyncResult> {
     };
   }
 
-  const pending = await getPendingDiscoveries();
+  const pending = await getSyncQueueBatch(SYNC_BATCH_SIZE);
   const result: SyncResult = {
     attempted: pending.length,
     synced: 0,
@@ -41,10 +44,14 @@ export async function syncPendingDiscoveries(): Promise<SyncResult> {
     message: pending.length ? 'Sincronizacao concluida.' : 'Nada pendente para sincronizar.'
   };
 
-  for (const discovery of pending) {
+  for (const item of pending) {
+    const { discovery } = item;
     try {
+      await markQueueProcessing(item.id);
       await markSyncing(discovery.id);
-      const remote = await sendDiscovery(discovery);
+      const payload = await buildSyncPayload(discovery);
+      const payloadHash = await calculatePayloadHash(payload);
+      const remote = await sendDiscovery(payload, payloadHash);
       const conflict = detectConflict(discovery, remote);
 
       if (conflict) {
@@ -71,14 +78,15 @@ export async function syncPendingDiscoveries(): Promise<SyncResult> {
   return result;
 }
 
-async function sendDiscovery(discovery: Discovery): Promise<RemoteSyncRecord> {
+async function sendDiscovery(payload: SyncPayload, payloadHash: string): Promise<RemoteSyncRecord> {
   if (!SYNC_ENDPOINT) {
     await waitForDemoLatency();
     return {
-      remoteId: discovery.remoteId ?? `remote_${discovery.id}`,
-      version: discovery.version,
-      updatedAt: discovery.updatedAt,
-      status: 'accepted'
+      remoteId: payload.remoteId ?? `remote_${payload.localId}`,
+      version: payload.version,
+      updatedAt: payload.updatedAt,
+      status: 'accepted',
+      acceptedHash: payloadHash
     };
   }
 
@@ -86,34 +94,88 @@ async function sendDiscovery(discovery: Discovery): Promise<RemoteSyncRecord> {
     throw new Error('Endpoint de sincronizacao precisa usar HTTPS.');
   }
 
+  if (!SYNC_AUTH_TOKEN) {
+    throw new Error('Configure EXPO_PUBLIC_SYNC_AUTH_TOKEN para autenticar a sincronizacao.');
+  }
+
+  const envelope = await createSecureEnvelope(payload);
   const response = await fetch(SYNC_ENDPOINT, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${SYNC_AUTH_TOKEN}`,
+      'Content-Type': 'application/json',
+      'X-Device-Id': payload.deviceId,
+      'X-Payload-SHA256': envelope.payloadHash
     },
-    body: JSON.stringify({
-      localId: discovery.id,
-      remoteId: discovery.remoteId,
-      title: discovery.title,
-      description: discovery.description,
-      category: discovery.category,
-      discoveredAt: discovery.discoveredAt,
-      updatedAt: discovery.updatedAt,
-      favorite: discovery.favorite,
-      version: discovery.version,
-      photos: discovery.photos.map((photo) => ({
-        id: photo.id,
-        uri: photo.uri,
-        createdAt: photo.createdAt
-      }))
-    })
+    body: JSON.stringify(envelope)
   });
 
   if (!response.ok) {
     throw new Error(`Servidor retornou HTTP ${response.status}.`);
   }
 
-  return (await response.json()) as RemoteSyncRecord;
+  const remote = (await response.json()) as RemoteSyncRecord;
+
+  if (remote.acceptedHash && remote.acceptedHash !== envelope.payloadHash) {
+    throw new Error('Servidor confirmou hash diferente do payload enviado.');
+  }
+
+  return remote;
+}
+
+type SyncPayload = {
+  schemaVersion: 1;
+  localId: string;
+  remoteId: string | null;
+  deviceId: string;
+  title: string;
+  description: string;
+  category: Discovery['category'];
+  discoveredAt: string;
+  updatedAt: string;
+  favorite: boolean;
+  version: number;
+  contentHash: string;
+  photos: Array<{
+    id: string;
+    mimeType: string;
+    byteSize: number;
+    sha256: string;
+    createdAt: string;
+    base64: string;
+  }>;
+};
+
+async function buildSyncPayload(discovery: Discovery): Promise<SyncPayload> {
+  const photos = [];
+
+  for (const photo of discovery.photos) {
+    const base64 = await assertPhotoIntegrity(photo.optimizedUri ?? photo.uri, photo.sha256);
+    photos.push({
+      id: photo.id,
+      mimeType: photo.mimeType,
+      byteSize: photo.byteSize,
+      sha256: photo.sha256,
+      createdAt: photo.createdAt,
+      base64
+    });
+  }
+
+  return {
+    schemaVersion: 1,
+    localId: discovery.id,
+    remoteId: discovery.remoteId,
+    deviceId: discovery.deviceId,
+    title: discovery.title,
+    description: discovery.description,
+    category: discovery.category,
+    discoveredAt: discovery.discoveredAt,
+    updatedAt: discovery.updatedAt,
+    favorite: discovery.favorite,
+    version: discovery.version,
+    contentHash: discovery.contentHash,
+    photos
+  };
 }
 
 function detectConflict(discovery: Discovery, remote: RemoteSyncRecord): string | null {

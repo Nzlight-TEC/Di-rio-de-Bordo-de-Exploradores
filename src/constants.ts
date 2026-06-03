@@ -16,3 +16,16 @@ export const MAX_PHOTOS_PER_DISCOVERY = 3;
 
 export const SYNC_ENDPOINT =
   process.env.EXPO_PUBLIC_SYNC_ENDPOINT?.trim() ?? '';
+
+export const SYNC_AUTH_TOKEN =
+  process.env.EXPO_PUBLIC_SYNC_AUTH_TOKEN?.trim() ?? '';
+
+export const SYNC_ENCRYPTION_KEY =
+  process.env.EXPO_PUBLIC_SYNC_ENCRYPTION_KEY?.trim() ?? '';
+
+export const SYNC_KEY_ID =
+  process.env.EXPO_PUBLIC_SYNC_KEY_ID?.trim() || 'mobile-default';
+
+export const SYNC_BATCH_SIZE = 10;
+
+export const CONNECTIVITY_CHECK_INTERVAL_MS = 30000;

@@ -1,8 +1,7 @@
-import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +19,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { CATEGORIES, MAX_PHOTOS_PER_DISCOVERY } from './src/constants';
+import { subscribeToNetworkMonitor } from './src/services/networkMonitor';
 import { canAddPhoto, persistCapturedPhoto } from './src/services/photoStorage';
 import { syncPendingDiscoveries, type SyncResult } from './src/services/syncEngine';
 import {
@@ -63,6 +63,7 @@ function ExplorerApp(): JSX.Element {
   const [online, setOnline] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<SyncResult | null>(null);
+  const wasOnlineRef = useRef<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     const [nextDiscoveries, nextMetrics] = await Promise.all([
@@ -72,6 +73,19 @@ function ExplorerApp(): JSX.Element {
     setDiscoveries(nextDiscoveries);
     setMetrics(nextMetrics);
   }, [filter]);
+
+  const onSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const result = await syncPendingDiscoveries();
+      setLastSync(result);
+      await refresh();
+    } catch (error) {
+      Alert.alert('Erro de sincronizacao', getErrorMessage(error));
+    } finally {
+      setSyncing(false);
+    }
+  }, [refresh]);
 
   useEffect(() => {
     let mounted = true;
@@ -85,15 +99,26 @@ function ExplorerApp(): JSX.Element {
         Alert.alert('Erro ao abrir banco local', getErrorMessage(error));
       });
 
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setOnline(Boolean(state.isConnected && state.isInternetReachable !== false));
-    });
+    const networkSubscription = subscribeToNetworkMonitor(
+      (snapshot) => {
+        setOnline(snapshot.online);
+
+        if (wasOnlineRef.current === false && snapshot.online) {
+          void onSync();
+        }
+
+        wasOnlineRef.current = snapshot.online;
+      },
+      (error) => {
+        Alert.alert('Erro ao monitorar rede', getErrorMessage(error));
+      }
+    );
 
     return () => {
       mounted = false;
-      unsubscribe();
+      networkSubscription.unsubscribe();
     };
-  }, []);
+  }, [onSync]);
 
   useEffect(() => {
     if (ready) {
@@ -124,19 +149,6 @@ function ExplorerApp(): JSX.Element {
   const onToggleFavorite = async (discovery: Discovery) => {
     await toggleFavorite(discovery.id, !discovery.favorite);
     await refresh();
-  };
-
-  const onSync = async () => {
-    setSyncing(true);
-    try {
-      const result = await syncPendingDiscoveries();
-      setLastSync(result);
-      await refresh();
-    } catch (error) {
-      Alert.alert('Erro de sincronizacao', getErrorMessage(error));
-    } finally {
-      setSyncing(false);
-    }
   };
 
   if (!ready) {
