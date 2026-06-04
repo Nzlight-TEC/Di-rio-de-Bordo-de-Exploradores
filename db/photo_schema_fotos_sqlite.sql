@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS photos (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   category_id     INTEGER NOT NULL,
   uri              TEXT NOT NULL,
+  rarity           TEXT NOT NULL DEFAULT 'comum',
 
   mime_type        TEXT,
   file_size_bytes INTEGER,
@@ -48,10 +49,12 @@ CREATE TABLE IF NOT EXISTS photos (
 
   UNIQUE(uri),
   CHECK(length(uri) BETWEEN 1 AND 2048),
+  CHECK(rarity IN ('comum', 'rara', 'muito_rara')),
   CHECK(file_size_bytes IS NULL OR file_size_bytes >= 0)
 );
 
 CREATE INDEX IF NOT EXISTS idx_photos_category_id ON photos(category_id);
+CREATE INDEX IF NOT EXISTS idx_photos_rarity ON photos(rarity);
 CREATE INDEX IF NOT EXISTS idx_photos_updated_at ON photos(updated_at);
 
 -- -------------------------------------------------------------
@@ -121,9 +124,10 @@ VALUES ('flora', 'Flora')
 ON CONFLICT(slug) DO UPDATE SET name = excluded.name;
 
 -- 2) Inserir foto
-INSERT INTO photos (category_id, uri, mime_type, file_size_bytes)
+INSERT INTO photos (category_id, uri, rarity, mime_type, file_size_bytes)
 SELECT id,
        'https://cdn.exemplo.com/fotos/plant-001.jpg',
+       'rara',
        'image/jpeg',
        245678
 FROM photo_categories
@@ -144,6 +148,7 @@ SELECT
   p.id,
   p.uri,
   c.slug AS category_slug,
+  p.rarity,
   t.title,
   t.description,
   p.created_at,
@@ -159,6 +164,7 @@ SELECT
   p.id,
   p.uri,
   c.slug AS category_slug,
+  p.rarity,
   t.title,
   t.description
 FROM photos p

@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { CATEGORIES, MAX_PHOTOS_PER_DISCOVERY } from './src/constants';
+import { CATEGORIES, MAX_PHOTOS_PER_DISCOVERY, RARITIES } from './src/constants';
 import { subscribeToNetworkMonitor } from './src/services/networkMonitor';
 import { canAddPhoto, persistCapturedPhoto } from './src/services/photoStorage';
 import { syncPendingDiscoveries, type SyncResult } from './src/services/syncEngine';
@@ -29,7 +29,13 @@ import {
   listDiscoveries,
   toggleFavorite
 } from './src/storage/database';
-import type { DashboardMetrics, Discovery, DiscoveryCategory, DiscoveryFilter } from './src/types';
+import type {
+  DashboardMetrics,
+  Discovery,
+  DiscoveryCategory,
+  DiscoveryFilter,
+  DiscoveryRarity
+} from './src/types';
 
 type TabKey = 'dashboard' | 'new' | 'records' | 'sync';
 
@@ -139,9 +145,10 @@ function ExplorerApp(): JSX.Element {
     title: string,
     description: string,
     category: DiscoveryCategory,
+    rarity: DiscoveryRarity,
     photoUris: string[]
   ) => {
-    await createDiscovery({ title, description, category, photoUris });
+    await createDiscovery({ title, description, category, rarity, photoUris });
     await refresh();
     setActiveTab('records');
   };
@@ -257,12 +264,14 @@ function DiscoveryForm({
     title: string,
     description: string,
     category: DiscoveryCategory,
+    rarity: DiscoveryRarity,
     photoUris: string[]
   ) => Promise<void>;
 }): JSX.Element {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<DiscoveryCategory>('flora');
+  const [rarity, setRarity] = useState<DiscoveryRarity>('comum');
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -298,10 +307,11 @@ function DiscoveryForm({
 
     setSaving(true);
     try {
-      await onSubmit(title, description, category, photoUris);
+      await onSubmit(title, description, category, rarity, photoUris);
       setTitle('');
       setDescription('');
       setCategory('flora');
+      setRarity('comum');
       setPhotoUris([]);
     } catch (error) {
       Alert.alert('Erro ao salvar localmente', getErrorMessage(error));
@@ -343,6 +353,21 @@ function DiscoveryForm({
               style={[styles.choice, category === item.value && styles.choiceActive]}
             >
               <Text style={[styles.choiceText, category === item.value && styles.choiceTextActive]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.fieldLabel}>Raridade</Text>
+        <View style={styles.choiceGrid}>
+          {RARITIES.map((item) => (
+            <Pressable
+              key={item.value}
+              onPress={() => setRarity(item.value)}
+              style={[styles.choice, rarity === item.value && styles.choiceActive]}
+            >
+              <Text style={[styles.choiceText, rarity === item.value && styles.choiceTextActive]}>
                 {item.label}
               </Text>
             </Pressable>
@@ -446,7 +471,8 @@ function DiscoveryCard({
         <View style={styles.cardTitleBlock}>
           <Text style={styles.discoveryTitle}>{discovery.title}</Text>
           <Text style={styles.discoveryMeta}>
-            {getCategoryLabel(discovery.category)} · {formatDate(discovery.discoveredAt)}
+            {getCategoryLabel(discovery.category)} · {getRarityLabel(discovery.rarity)} ·{' '}
+            {formatDate(discovery.discoveredAt)}
           </Text>
         </View>
         <Pressable onPress={onToggleFavorite} style={styles.favoriteButton}>
@@ -606,6 +632,10 @@ function EmptyState({ text }: { text: string }): JSX.Element {
 
 function getCategoryLabel(category: DiscoveryCategory): string {
   return CATEGORIES.find((item) => item.value === category)?.label ?? category;
+}
+
+function getRarityLabel(rarity: DiscoveryRarity): string {
+  return RARITIES.find((item) => item.value === rarity)?.label ?? rarity;
 }
 
 function formatDate(value: string): string {

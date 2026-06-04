@@ -7,12 +7,13 @@ import type {
   DiscoveryFilter,
   DiscoveryInput,
   DiscoveryPhoto,
+  DiscoveryRarity,
   NetworkSnapshot,
   StoredPhotoInput,
   SyncOperation,
   SyncStatus
 } from '../types';
-import { CATEGORIES } from '../constants';
+import { CATEGORIES, RARITIES } from '../constants';
 import { buildStoredPhotoInput } from '../services/photoStorage';
 import { makeId } from '../utils/id';
 import { hashCanonicalJson } from '../services/integrity';
@@ -65,6 +66,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
       title TEXT NOT NULL,
       description TEXT NOT NULL,
       category TEXT NOT NULL,
+      rarity TEXT NOT NULL DEFAULT 'comum',
       deviceId TEXT NOT NULL DEFAULT 'unknown',
       contentHash TEXT NOT NULL DEFAULT '',
       discoveredAt TEXT NOT NULL,
@@ -164,6 +166,7 @@ export async function createDiscovery(input: DiscoveryInput): Promise<string> {
     title: normalized.title,
     description: normalized.description,
     category: normalized.category,
+    rarity: normalized.rarity,
     favorite: false,
     updatedAt: now,
     version: 1,
@@ -174,13 +177,14 @@ export async function createDiscovery(input: DiscoveryInput): Promise<string> {
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `INSERT INTO discoveries (
-        id, title, description, category, deviceId, contentHash, discoveredAt, createdAt, updatedAt, syncStatus, version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 1)`,
+        id, title, description, category, rarity, deviceId, contentHash, discoveredAt, createdAt, updatedAt, syncStatus, version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 1)`,
       [
         id,
         normalized.title,
         normalized.description,
         normalized.category,
+        normalized.rarity,
         deviceId,
         contentHash,
         now,
@@ -207,7 +211,7 @@ export async function listDiscoveries(filter: DiscoveryFilter): Promise<Discover
 
   if (filter.search.trim()) {
     params.$search = `%${filter.search.trim()}%`;
-    clauses.push('(title LIKE $search OR description LIKE $search OR category LIKE $search)');
+    clauses.push('(title LIKE $search OR description LIKE $search OR category LIKE $search OR rarity LIKE $search)');
   }
 
   if (filter.favoritesOnly) {
@@ -586,6 +590,7 @@ async function calculateDiscoveryContentHash(value: {
   title: string;
   description: string;
   category: DiscoveryCategory;
+  rarity: DiscoveryRarity;
   favorite: boolean;
   updatedAt: string;
   version: number;
@@ -597,6 +602,7 @@ async function calculateDiscoveryContentHash(value: {
     title: value.title,
     description: value.description,
     category: value.category,
+    rarity: value.rarity,
     favorite: value.favorite,
     updatedAt: value.updatedAt,
     version: value.version,
@@ -613,11 +619,13 @@ function validateDiscoveryInput(input: DiscoveryInput): {
   title: string;
   description: string;
   category: DiscoveryCategory;
+  rarity: DiscoveryRarity;
   photoUris: string[];
 } {
   const title = input.title.trim();
   const description = input.description.trim();
   const validCategory = CATEGORIES.some((category) => category.value === input.category);
+  const validRarity = RARITIES.some((rarity) => rarity.value === input.rarity);
 
   if (!title || title.length > 80) {
     throw new Error('Titulo deve ter entre 1 e 80 caracteres.');
@@ -631,6 +639,10 @@ function validateDiscoveryInput(input: DiscoveryInput): {
     throw new Error('Categoria invalida.');
   }
 
+  if (!validRarity) {
+    throw new Error('Raridade invalida.');
+  }
+
   if (input.photoUris.length > 3) {
     throw new Error('Limite de fotos excedido.');
   }
@@ -639,6 +651,7 @@ function validateDiscoveryInput(input: DiscoveryInput): {
     title,
     description,
     category: input.category,
+    rarity: input.rarity,
     photoUris: input.photoUris.filter((uri) => uri.trim().length > 0)
   };
 }
@@ -650,6 +663,8 @@ function calculateRetryTimestamp(fromIso: string): string {
 async function migrateDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
   await ensureColumn(db, 'discoveries', 'deviceId', "TEXT NOT NULL DEFAULT 'unknown'");
   await ensureColumn(db, 'discoveries', 'contentHash', "TEXT NOT NULL DEFAULT ''");
+  await ensureColumn(db, 'discoveries', 'rarity', "TEXT NOT NULL DEFAULT 'comum'");
+  await db.execAsync('CREATE INDEX IF NOT EXISTS idx_discoveries_rarity ON discoveries(rarity);');
   await ensureColumn(db, 'discovery_photos', 'optimizedUri', 'TEXT');
   await ensureColumn(db, 'discovery_photos', 'mimeType', "TEXT NOT NULL DEFAULT 'image/jpeg'");
   await ensureColumn(db, 'discovery_photos', 'byteSize', 'INTEGER NOT NULL DEFAULT 0');

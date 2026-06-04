@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS photos (
   -- Caminho/URL no storage externo (S3, filesystem, CDN, etc.)
   -- Ex.: 'https://cdn.../foto123.jpg' ou '/uploads/...'
   uri             TEXT NOT NULL,
+  rarity          TEXT NOT NULL DEFAULT 'comum',
 
   -- Metadados técnicos opcionais (útil p/ evoluir sem refazer schema)
   mime_type       TEXT,
@@ -61,11 +62,13 @@ CREATE TABLE IF NOT EXISTS photos (
 
   CONSTRAINT uq_photos_uri UNIQUE (uri),
   CONSTRAINT chk_photos_uri_len CHECK (length(uri) BETWEEN 1 AND 2048),
+  CONSTRAINT photos_rarity_valid CHECK (rarity IN ('comum', 'rara', 'muito_rara')),
   CONSTRAINT chk_photos_file_size_nonneg CHECK (file_size_bytes IS NULL OR file_size_bytes >= 0)
 );
 
 -- Índices para consultas frequentes
 CREATE INDEX IF NOT EXISTS idx_photos_category_id ON photos(category_id);
+CREATE INDEX IF NOT EXISTS idx_photos_rarity ON photos(rarity);
 CREATE INDEX IF NOT EXISTS idx_photos_updated_at ON photos(updated_at);
 
 -- -------------------------------------------------------------
@@ -140,9 +143,10 @@ ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name;
 WITH cat AS (
   SELECT id FROM photo_categories WHERE slug = 'flora'
 )
-INSERT INTO photos (category_id, uri, mime_type, file_size_bytes)
+INSERT INTO photos (category_id, uri, rarity, mime_type, file_size_bytes)
 SELECT cat.id,
        'https://cdn.exemplo.com/fotos/plant-001.jpg',
+       'rara',
        'image/jpeg',
        245678
 FROM cat
@@ -163,6 +167,7 @@ SELECT
   p.id,
   p.uri,
   c.slug AS category_slug,
+  p.rarity,
   t.title,
   t.description,
   p.created_at,
@@ -178,6 +183,7 @@ SELECT
   p.id,
   p.uri,
   c.slug AS category_slug,
+  p.rarity,
   t.title,
   t.description
 FROM photos p

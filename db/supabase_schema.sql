@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.discoveries (
       'other'
     )
   ),
+  rarity TEXT NOT NULL DEFAULT 'comum',
   discovered_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   favorite BOOLEAN NOT NULL DEFAULT FALSE,
@@ -39,8 +40,37 @@ CREATE TABLE IF NOT EXISTS public.discoveries (
   deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (device_id, local_id)
+  UNIQUE (device_id, local_id),
+  CONSTRAINT discoveries_rarity_valid
+    CHECK (rarity IN ('comum', 'rara', 'muito_rara'))
 );
+
+ALTER TABLE public.discoveries
+  ADD COLUMN IF NOT EXISTS rarity TEXT NOT NULL DEFAULT 'comum';
+
+UPDATE public.discoveries
+SET rarity = 'comum'
+WHERE rarity IS NULL
+   OR rarity NOT IN ('comum', 'rara', 'muito_rara');
+
+ALTER TABLE public.discoveries
+  ALTER COLUMN rarity SET DEFAULT 'comum',
+  ALTER COLUMN rarity SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'discoveries_rarity_valid'
+      AND conrelid = 'public.discoveries'::regclass
+  ) THEN
+    ALTER TABLE public.discoveries
+      ADD CONSTRAINT discoveries_rarity_valid
+      CHECK (rarity IN ('comum', 'rara', 'muito_rara'));
+  END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS public.discovery_photos (
   id TEXT PRIMARY KEY,
@@ -76,6 +106,9 @@ CREATE INDEX IF NOT EXISTS idx_discoveries_device_local
 
 CREATE INDEX IF NOT EXISTS idx_discoveries_updated_at
   ON public.discoveries(updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_discoveries_rarity
+  ON public.discoveries(rarity);
 
 CREATE INDEX IF NOT EXISTS idx_photos_discovery
   ON public.discovery_photos(discovery_id);

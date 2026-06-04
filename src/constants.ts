@@ -1,4 +1,4 @@
-import type { DiscoveryCategory } from './types';
+import type { DiscoveryCategory, DiscoveryRarity } from './types';
 
 export const CATEGORIES: Array<{ value: DiscoveryCategory; label: string }> = [
   { value: 'flora', label: 'Flora' },
@@ -10,6 +10,12 @@ export const CATEGORIES: Array<{ value: DiscoveryCategory; label: string }> = [
   { value: 'water', label: 'Agua' },
   { value: 'artifact', label: 'Artefato' },
   { value: 'other', label: 'Outro' }
+];
+
+export const RARITIES: Array<{ value: DiscoveryRarity; label: string }> = [
+  { value: 'comum', label: 'Comum' },
+  { value: 'rara', label: 'Rara' },
+  { value: 'muito_rara', label: 'Muito Rara' }
 ];
 
 export const MAX_PHOTOS_PER_DISCOVERY = 3;

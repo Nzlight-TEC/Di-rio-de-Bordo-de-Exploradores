@@ -131,6 +131,7 @@ type SyncPayload = {
   title: string;
   description: string;
   category: Discovery['category'];
+  rarity: Discovery['rarity'];
   discoveredAt: string;
   updatedAt: string;
   favorite: boolean;
@@ -169,6 +170,7 @@ async function buildSyncPayload(discovery: Discovery): Promise<SyncPayload> {
     title: discovery.title,
     description: discovery.description,
     category: discovery.category,
+    rarity: discovery.rarity,
     discoveredAt: discovery.discoveredAt,
     updatedAt: discovery.updatedAt,
     favorite: discovery.favorite,

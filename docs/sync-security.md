@@ -24,10 +24,14 @@ Sem `EXPO_PUBLIC_SYNC_ENDPOINT`, o app usa modo demo local e nao envia dados.
 
 No Supabase, abra o SQL Editor e cole o conteudo de `db/supabase_schema.sql`.
 
+Se suas tabelas ja existem, cole tambem `db/supabase_rf05_rarity_patch.sql` para acrescentar
+o RF05 sem apagar dados. A raridade aceita os valores `comum`, `rara` e `muito_rara`,
+exibidos no app como Comum, Rara e Muito Rara.
+
 Ele cria estas tabelas:
 
 - `devices`: dispositivos autorizados a sincronizar.
-- `discoveries`: registros principais enviados pelo app.
+- `discoveries`: registros principais enviados pelo app, incluindo categoria e raridade obrigatoria.
 - `discovery_photos`: fotos em Base64 com tamanho, MIME e SHA-256.
 - `discovery_versions`: historico para rollback e conciliacao.
 - `sync_audit`: auditoria de sincronizacoes aceitas ou conflitantes.

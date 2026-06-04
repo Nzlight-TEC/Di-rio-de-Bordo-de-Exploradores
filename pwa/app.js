@@ -1,5 +1,5 @@
 const DB_NAME = 'explorer-mobile-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const MAX_PHOTOS = 3;
 const SYNC_ENDPOINT = localStorage.getItem('EXPLORER_SYNC_ENDPOINT') || '';
 const params = new URLSearchParams(location.search);
@@ -16,8 +16,15 @@ const categories = [
   ['other', 'Outro']
 ];
 
+const rarities = [
+  ['comum', 'Comum'],
+  ['rara', 'Rara'],
+  ['muito_rara', 'Muito Rara']
+];
+
 let db;
 let currentCategory = 'flora';
+let currentRarity = 'comum';
 let photoDrafts = [];
 let favoritesOnly = false;
 
@@ -29,6 +36,7 @@ const els = {
   title: document.querySelector('#titleInput'),
   description: document.querySelector('#descriptionInput'),
   categoryChoices: document.querySelector('#categoryChoices'),
+  rarityChoices: document.querySelector('#rarityChoices'),
   photoInput: document.querySelector('#photoInput'),
   photoPreview: document.querySelector('#photoPreview'),
   photoCounter: document.querySelector('#photoCounter'),
@@ -49,6 +57,7 @@ async function init() {
     await seedDemoData();
   }
   renderCategoryChoices();
+  renderRarityChoices();
   bindEvents();
   showView(params.get('view') || location.hash.replace('#', '') || 'dashboardView');
   await refresh();
@@ -97,10 +106,14 @@ function openDatabase() {
 
     request.onupgradeneeded = () => {
       const database = request.result;
-      const discoveries = database.createObjectStore('discoveries', { keyPath: 'id' });
-      discoveries.createIndex('syncStatus', 'syncStatus', { unique: false });
-      discoveries.createIndex('category', 'category', { unique: false });
-      discoveries.createIndex('favorite', 'favorite', { unique: false });
+      const discoveries = database.objectStoreNames.contains('discoveries')
+        ? request.transaction.objectStore('discoveries')
+        : database.createObjectStore('discoveries', { keyPath: 'id' });
+
+      ensureIndex(discoveries, 'syncStatus', 'syncStatus');
+      ensureIndex(discoveries, 'category', 'category');
+      ensureIndex(discoveries, 'rarity', 'rarity');
+      ensureIndex(discoveries, 'favorite', 'favorite');
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -123,6 +136,7 @@ async function createDiscovery() {
     title,
     description,
     category: currentCategory,
+    rarity: currentRarity,
     discoveredAt: now,
     createdAt: now,
     updatedAt: now,
@@ -139,8 +153,10 @@ async function createDiscovery() {
   await putRecord(record);
   els.form.reset();
   currentCategory = 'flora';
+  currentRarity = 'comum';
   photoDrafts = [];
   renderCategoryChoices();
+  renderRarityChoices();
   renderPhotoDrafts();
   showView('recordsView');
   await refresh();
@@ -303,7 +319,8 @@ async function refreshRecords() {
   const query = els.search.value.trim().toLowerCase();
   const records = (await getAllRecords())
     .filter((record) => {
-      const haystack = `${record.title} ${record.description} ${record.category}`.toLowerCase();
+      const rarity = record.rarity || 'comum';
+      const haystack = `${record.title} ${record.description} ${record.category} ${rarity} ${getRarityLabel(rarity)}`.toLowerCase();
       return (!query || haystack.includes(query)) && (!favoritesOnly || record.favorite);
     })
     .sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.updatedAt.localeCompare(a.updatedAt));
@@ -322,7 +339,7 @@ async function refreshRecords() {
       <div class="record-top">
         <div>
           <h3>${escapeHtml(record.title)}</h3>
-          <p class="record-meta">${getCategoryLabel(record.category)} · ${formatDate(record.discoveredAt)}</p>
+          <p class="record-meta">${getCategoryLabel(record.category)} · ${getRarityLabel(record.rarity || 'comum')} · ${formatDate(record.discoveredAt)}</p>
         </div>
         <button class="favorite-button" title="Alternar favorito">${record.favorite ? '★' : '☆'}</button>
       </div>
@@ -362,6 +379,21 @@ function renderCategoryChoices() {
       renderCategoryChoices();
     });
     els.categoryChoices.append(button);
+  });
+}
+
+function renderRarityChoices() {
+  els.rarityChoices.innerHTML = '';
+  rarities.forEach(([value, label]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `choice ${value === currentRarity ? 'active' : ''}`;
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      currentRarity = value;
+      renderRarityChoices();
+    });
+    els.rarityChoices.append(button);
   });
 }
 
@@ -422,6 +454,7 @@ async function seedDemoData() {
       title: 'Orquidea rupestre',
       description: 'Especime observado em fenda umida de afloramento, com flores pequenas e folhas carnosas.',
       category: 'flora',
+      rarity: 'rara',
       favorite: true,
       syncStatus: 'pending',
       photos: [makeDemoPhoto('#116466', 'FL')]
@@ -430,6 +463,7 @@ async function seedDemoData() {
       title: 'Estrato ferruginoso',
       description: 'Camada avermelhada com textura granular, registrada para comparacao geologica posterior.',
       category: 'rock',
+      rarity: 'comum',
       favorite: false,
       syncStatus: 'synced',
       photos: [makeDemoPhoto('#c88719', 'RO')]
@@ -438,6 +472,7 @@ async function seedDemoData() {
       title: 'Fragmento fossilifero',
       description: 'Fragmento com impressao organica parcial; requer conciliacao com registro remoto existente.',
       category: 'fossil',
+      rarity: 'muito_rara',
       favorite: true,
       syncStatus: 'conflict',
       conflictNote: 'Versao remota mais recente que a copia local.',
@@ -452,6 +487,7 @@ async function seedDemoData() {
       title: sample.title,
       description: sample.description,
       category: sample.category,
+      rarity: sample.rarity,
       discoveredAt: createdAt,
       createdAt,
       updatedAt: createdAt,
@@ -501,6 +537,10 @@ function getCategoryLabel(category) {
   return categories.find(([value]) => value === category)?.[1] || category;
 }
 
+function getRarityLabel(rarity) {
+  return rarities.find(([value]) => value === rarity)?.[1] || rarity;
+}
+
 function getStatusLabel(status) {
   return {
     pending: 'Pendente',
@@ -535,4 +575,10 @@ function escapeHtml(value) {
 
 function getErrorMessage(error) {
   return error instanceof Error ? error.message : 'Erro inesperado.';
+}
+
+function ensureIndex(store, name, keyPath) {
+  if (!store.indexNames.contains(name)) {
+    store.createIndex(name, keyPath, { unique: false });
+  }
 }

@@ -29,6 +29,13 @@ test('validatePayload rejects corrupted photo content', () => {
   assert.throws(() => validatePayload(payload), /Hash da foto/);
 });
 
+test('validatePayload rejects invalid rarity', () => {
+  const payload = validPayload();
+  payload.rarity = 'lendaria';
+
+  assert.throws(() => validatePayload(payload), /Raridade invalida/);
+});
+
 function validPayload() {
   const base64 = Buffer.from('photo-bytes').toString('base64');
 
@@ -40,6 +47,7 @@ function validPayload() {
     title: 'Amostra',
     description: 'Descricao de campo',
     category: 'flora',
+    rarity: 'comum',
     discoveredAt: '2026-06-03T12:00:00.000Z',
     updatedAt: '2026-06-03T12:00:00.000Z',
     favorite: false,

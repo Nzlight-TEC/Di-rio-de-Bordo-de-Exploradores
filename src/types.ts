@@ -9,6 +9,8 @@ export type DiscoveryCategory =
   | 'artifact'
   | 'other';
 
+export type DiscoveryRarity = 'comum' | 'rara' | 'muito_rara';
+
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'conflict' | 'error';
 
 export type SyncOperation = 'upsert' | 'delete';
@@ -29,6 +31,7 @@ export type Discovery = {
   title: string;
   description: string;
   category: DiscoveryCategory;
+  rarity: DiscoveryRarity;
   discoveredAt: string;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +51,7 @@ export type DiscoveryInput = {
   title: string;
   description: string;
   category: DiscoveryCategory;
+  rarity: DiscoveryRarity;
   photoUris: string[];
 };
 

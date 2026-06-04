@@ -46,7 +46,17 @@ export function requireBearerToken(request, expectedToken) {
 }
 
 export function validatePayload(payload) {
-  const requiredStrings = ['localId', 'deviceId', 'title', 'description', 'category', 'discoveredAt', 'updatedAt', 'contentHash'];
+  const requiredStrings = [
+    'localId',
+    'deviceId',
+    'title',
+    'description',
+    'category',
+    'rarity',
+    'discoveredAt',
+    'updatedAt',
+    'contentHash'
+  ];
 
   for (const field of requiredStrings) {
     if (typeof payload[field] !== 'string' || payload[field].trim().length === 0) {
@@ -56,6 +66,10 @@ export function validatePayload(payload) {
 
   if (payload.title.length > 80 || payload.description.length > 800) {
     throw httpError(400, 'Titulo ou descricao excedem o limite.');
+  }
+
+  if (!['comum', 'rara', 'muito_rara'].includes(payload.rarity)) {
+    throw httpError(400, 'Raridade invalida.');
   }
 
   if (!Number.isInteger(payload.version) || payload.version < 1) {

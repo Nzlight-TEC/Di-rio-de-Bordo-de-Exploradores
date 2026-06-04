@@ -55,17 +55,19 @@ async function syncDiscovery(pool, payload, acceptedHash) {
          SET title = $1,
              description = $2,
              category = $3,
-             discovered_at = $4,
-             updated_at = $5,
-             favorite = $6,
-             version = $7,
-             content_hash = $8,
+             rarity = $4,
+             discovered_at = $5,
+             updated_at = $6,
+             favorite = $7,
+             version = $8,
+             content_hash = $9,
              last_synced_at = now()
-         WHERE id = $9`,
+         WHERE id = $10`,
         [
           payload.title,
           payload.description,
           payload.category,
+          payload.rarity,
           payload.discoveredAt,
           payload.updatedAt,
           payload.favorite,
@@ -83,10 +85,10 @@ async function syncDiscovery(pool, payload, acceptedHash) {
 
     const created = await client.query(
       `INSERT INTO discoveries (
-        local_id, device_id, title, description, category, discovered_at, updated_at,
+        local_id, device_id, title, description, category, rarity, discovered_at, updated_at,
         favorite, version, content_hash
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id`,
       [
         payload.localId,
@@ -94,6 +96,7 @@ async function syncDiscovery(pool, payload, acceptedHash) {
         payload.title,
         payload.description,
         payload.category,
+        payload.rarity,
         payload.discoveredAt,
         payload.updatedAt,
         payload.favorite,
