@@ -108,6 +108,10 @@ async function syncDiscovery(pool, payload, acceptedHash) {
     await replacePhotos(client, remoteId, payload.photos);
     await saveVersion(client, remoteId, payload);
     await audit(client, payload, acceptedHash, 'accepted');
+
+    // Debug: registra na tabela de discoveries debug
+    await insertDiscoveryDebug(client, payload, remoteId);
+
     await client.query('COMMIT');
     return accepted(remoteId, payload, acceptedHash);
   } catch (error) {
@@ -176,6 +180,44 @@ async function audit(client, payload, acceptedHash, status) {
      VALUES ($1, $2, $3, $4)`,
     [payload.deviceId, payload.localId, acceptedHash, status]
   );
+
+  // Debug: também registra payload
+  await client.query(
+    `INSERT INTO sync_payload_audit_debug
+      (device_id, local_id, accepted_hash, payload_hash, status, payload)
+     VALUES
+      ($1, $2, $3, $4, $5, $6)`,
+    [payload.deviceId, payload.localId, acceptedHash, payload.contentHash, status, payload]
+  );
+}
+
+async function insertDiscoveryDebug(client, payload, remoteId) {
+  try {
+    await client.query(
+      `INSERT INTO sync_discoveries_debug
+        (device_id, local_id, title, category, rarity, version, content_hash)
+       VALUES
+        ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (device_id, local_id)
+       DO UPDATE SET
+         title = EXCLUDED.title,
+         category = EXCLUDED.category,
+         rarity = EXCLUDED.rarity,
+         version = EXCLUDED.version,
+         content_hash = EXCLUDED.content_hash`,
+      [
+        payload.deviceId,
+        payload.localId,
+        payload.title,
+        payload.category,
+        payload.rarity,
+        payload.version,
+        payload.contentHash
+      ]
+    );
+  } catch {
+    // se tabela debug não existir, não quebra o sync
+  }
 }
 
 function accepted(remoteId, payload, acceptedHash) {
@@ -199,3 +241,4 @@ function shouldUseSsl(connectionString) {
 
   return undefined;
 }
+

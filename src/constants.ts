@@ -20,17 +20,26 @@ export const RARITIES: Array<{ value: DiscoveryRarity; label: string }> = [
 
 export const MAX_PHOTOS_PER_DISCOVERY = 3;
 
+// Expo: expor variáveis apenas via EXPO_PUBLIC_*
+const env = (typeof process !== 'undefined' ? process.env : ({} as Record<string, string | undefined>));
+
 export const SYNC_ENDPOINT =
-  process.env.EXPO_PUBLIC_SYNC_ENDPOINT?.trim() ?? '';
+  env.EXPO_PUBLIC_SUPABASE_URL?.trim() ?? env.SUPABASE_URL?.trim() ?? '';
 
 export const SYNC_AUTH_TOKEN =
-  process.env.EXPO_PUBLIC_SYNC_AUTH_TOKEN?.trim() ?? '';
+  env.EXPO_PUBLIC_SUPABASE_KEY?.trim() ?? env.SUPABASE_KEY?.trim() ?? '';
 
 export const SYNC_ENCRYPTION_KEY =
-  process.env.EXPO_PUBLIC_SYNC_ENCRYPTION_KEY?.trim() ?? '';
+  env.EXPO_PUBLIC_SUPABASE_ENCRYPTION_KEY?.trim() ??
+  env.SUPABASE_ENCRYPTION_KEY?.trim() ??
+  '';
 
 export const SYNC_KEY_ID =
-  process.env.EXPO_PUBLIC_SYNC_KEY_ID?.trim() || 'mobile-default';
+  env.EXPO_PUBLIC_SUPABASE_KEY_ID?.trim() ||
+  env.SUPABASE_KEY_ID?.trim() ||
+  'mobile-default';
+
+
 
 export const SYNC_BATCH_SIZE = 10;
 
